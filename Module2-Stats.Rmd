@@ -1,0 +1,245 @@
+---
+title: "Crime Types from a Gender Perspective Forced Marriage & Female Genital Mutilation"
+author: "Eunkoo Lee"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    code_folding: hide
+    highlight: tango
+    number_sections: yes
+    theme: lumen
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set( message = FALSE, warning = FALSE, results =FALSE, echo = TRUE) 
+
+```
+**Important notice:**
+
+In this document the top right button **CODE**  enables you to show all R code chunks that have been hidden by default. You can choose to show the code either individually or document wide using these buttons.
+
+----
+
+*R codes for generating child marriage/FGM indicators in the Sudan MICS 2014 data can be found on the [SIAP e-learning Platform](https://siap-elearning.org/index.php?)*
+
+R code is available [here](FGMsudan.R) 
+
+---
+
+# Installation
+
+We use some standard packages for doing the analysis. These packages have to be downloaded and installed before loading them here. (see **code** ) 
+
+
+```{r packages, echo = TRUE}
+# loading libraries. Might need to install packages first if not installed already
+
+library(foreign)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(ggplot2)
+
+```
+
+# Reading data
+
+
+```{r data}
+#-------------------
+# See with Eunkoo how to settle this since Rmarkdown has a different logic. (path are relative to the folder where the .Rmd is stored) 
+#-------------------
+# setting the working directory by specifying the path of the folder ## To discuss with Eunkoo 
+# setwd("C:/Users/exl15/Downloads/Rwork/sudan")
+#setwd("C:/Chris/Un")
+
+# checking the path of current directory
+#getwd()
+
+# reading MICS micro-data into R
+# reading micro-data from questionnaire for women and storing into wm
+wm<-read.spss(file="Data/wm.sav",to.data.frame = TRUE)
+
+```
+
+
+
+# Initial Analysis 
+We can perform some analysis from the data set. 
+First, we can check that after reading the data, there are **`r nrow(wm)`** observations in this file, and **`r ncol(wm)`** variables. 
+
+## Child marriage
+We can compute some initial counts and percentages: (see **code** ) 
+
+```{r inital, results= FALSE}
+#subset function takes parts of dataset from “wm" dataset that meets certain #conditions. The conditions are women who have completed the questionnaire #(WM7=Completed) and their age is 20-24 which is the denominator. #Numerator includes number of women first married or in union before age 18 #(WAGEM). 
+
+wmcompleted<-subset(wm, (WM7=='Completed') & WB2>=20 & WB2<25) 
+
+sum(wmcompleted$wmweight)
+
+age18<-subset(wmcompleted, WAGEM<18)
+
+sum(age18$wmweight)/sum(wmcompleted$wmweight)
+
+```
+
+We take a subset from the original file. The conditions are women who have completed the questionnaire (*WM7=Completed*) and their age is *20-24* which is the denominator. 
+
+The total (weighted)number of completed cases is  **`r round(sum(wmcompleted$wmweight),2)`** .
+
+We can compute a percentage using as numerator the number of women first married or in union before age 18 (WAGEM). 
+
+> Within those cases, the percentage of women under 18  is  **`r round(100*sum(age18$wmweight)/sum(wmcompleted$wmweight), 2)`** \%. 
+
+
+## Percent currently married (age 15-19)
+
+Using the same type of code, we can compute the percentage of married or formerly married women. (see **code** )
+```{r}
+# Numerator includes women aged 15-19 who completed the questionnaire and the 
+# marital status (MSTATUS) is “currently married” or “formerly married”. Denominator 
+# includes all women aged 15-19 who completed the questionnaire. 
+# In R, logical operator “|” is used for OR condition. 
+# For AND condition, logical operator “&” is used.
+
+wmcompleted<-subset(wm, (WM7=='Completed') & WB2>=15 & WB2<20)
+
+cmarried<-subset(wmcompleted, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+
+sum(cmarried$wmweight)/sum(wmcompleted$wmweight)
+
+```
+We can now say that:
+
+> The percentage of women currently or formerly married is **`r round(100*sum(cmarried$wmweight)/sum(wmcompleted$wmweight),2)`** %
+
+
+*Visualization proposition* 
+
+```{r plotMarried}
+wmCB <- wm %>% 
+  filter(WM7=='Completed' & WB2>=15 & WB2<20) %>%
+  group_by(MSTATUS) %>% 
+  summarise(count = n()) %>% 
+  mutate(perc = 100*count/sum(count)) %>%
+  ungroup()
+
+ggplot(wmCB, aes(x = factor(MSTATUS), y = perc)) +
+  geom_bar(stat="identity", width = 0.7, fill = "steelblue") +
+labs(title = "Marital Status of women (age 15-19)",
+        x =  "Marital Status",
+        y = "percent") +
+  theme_minimal()
+
+```
+
+## Percent currently married (age 15-19): education
+
+In the code used,  Numerator includes women aged 15-19 who completed the questionnaire and the  marital status (MSTATUS) is “currently married” or “formerly married”. Denominator   includes all women aged 15-19 who completed the questionnaire. 
+
+In R, logical operator “|” is used for OR condition. For AND condition, logical operator “&” is used. (see **code**)
+
+
+
+```{r}
+wmcompleted<-subset(wm, (WM7=='Completed') & WB2>=15 & WB2<20)
+edunone<-subset(wmcompleted, welevel=='None')
+eduprimary<-subset(wmcompleted, welevel=='Primary')
+edusecondary<-subset(wmcompleted, welevel=='Secondary')
+eduhigher<-subset(wmcompleted, welevel=='Higher')
+
+cmedunone<-subset(edunone, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+cmeduprimary<-subset(eduprimary, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+cmedusecondary<-subset(edusecondary, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+cmeduhigher<-subset(eduhigher, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+
+
+sum(cmedunone$wmweight)/sum(edunone$wmweight) #FGM prevalence ratio none
+sum(cmeduprimary$wmweight)/sum(eduprimary$wmweight) #FGM prevalence ratio primary
+sum(cmedusecondary$wmweight)/sum(edusecondary$wmweight) #FGM prevalence ratio secondary
+sum(cmeduhigher$wmweight)/sum(eduhigher$wmweight) #FGM prevalence ratio hihger
+
+```
+ **Bla bla... **
+ 
+* FGM prevalence ratio none:
+* FGM prevalence ratio primary:
+* FGM prevalence ratio:
+* FGM prevalence ratio higher:
+
+*Visualisation proposition* 
+
+```{r marriage}
+ggplot(wmcompleted) +
+ aes(x = welevel, fill = MSTATUS) +
+ geom_bar() +
+ scale_fill_hue() +
+ labs(x = "Education", title = "Marital Status and education", 
+      fill = "Marital Status") +
+ theme_minimal()
+```
+
+## Percent currently married (age 15-19): urban/rural
+
+```{r}
+wmcompleted<-subset(wm, (WM7=='Completed') & WB2>=15 & WB2<20)
+wmcompletedu<-subset(wm, (WM7=='Completed') & (WB2>=15 & WB2<20)&(HH6=='Urban'))
+wmcompletedr<-subset(wm, (WM7=='Completed') & (WB2>=15 & WB2<20)&(HH6=='Rural'))
+Cmarriedu<-subset(wmcompletedu, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+cmarriedr<-subset(wmcompletedr, (MSTATUS=='Currently married')|(MSTATUS=='Formerly married'))
+Cmarriedu<-subset(cmarried, HH6=='Urban')
+Cmarriedr<-subset(cmarried, HH6=='Rural')
+sum(Cmarriedu$wmweight)/sum(wmcompletedu$wmweight)
+sum(Cmarriedr$wmweight)/sum(wmcompletedr$wmweight)
+```
+
+*A proposal for visualizing some numbers*
+
+```{r, plotLiving, result = TRUE}
+wmCB<- wm %>%
+  filter(WM7=='Completed' & WB2>=15 & WB2<20) %>%
+  mutate(LivingArea = ifelse(HH6=='Urban',"URBAN", ifelse(HH6=='Rural', "RURAL", NA_character_) )
+  )
+   ggplot(wmCB, aes(LivingArea)) +
+     geom_bar(fill="steelblue")+
+     theme_minimal()
+   
+   
+   
+      
+```
+
+
+
+
+
+### SDG 5.3.2:FGM
+
+```{r}
+wmcompleted<-subset(wm, WM7=='Completed')
+sum(wmcompleted$wmweight)
+wmyes<-subset(wmcompleted, FG3=='Yes')
+sum(wmyes$wmweight)
+sum(wmyes$wmweight)/sum(wmcompleted$wmweight) #FGM prevalence ratio
+
+```
+
+
+## FGM by urban/rural
+```{r}
+urbanity<-subset(wmcompleted, HH6=='Urban') #denominator for urban
+rurality<-subset(wmcompleted, HH6=='Rural') #denominator for rural
+sum(urbanity$wmweight)
+sum(rurality$wmweight)
+urbanityyes<-subset(urbanity, FG3=='Yes') #numerator for urban
+ruralityyes<-subset(rurality, FG3=='Yes') #numerator for rural
+sum(urbanityyes$wmweight)/sum(urbanity$wmweight) #FGM prevalence ratio urban
+sum(ruralityyes$wmweight)/sum(rurality$wmweight) #FGM prevalence ratio rural
+
+```
+
+**TBC...** 
